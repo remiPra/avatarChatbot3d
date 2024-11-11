@@ -1,4 +1,3 @@
-// src/components/RPMAvatar.jsx
 import React, { useRef, useEffect, useState } from 'react';
 import { useLoader, useFrame, useThree } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
@@ -6,17 +5,18 @@ import * as THREE from 'three';
 
 export default function RPMAvatar({ 
   url = 'https://models.readyplayer.me/6731e8f003bbc9f5ef95cc98.glb?morphTargets=ARKit', 
-  mouthOpenValue = 0
+  mouthOpenValue = 0,
+  isAnimating = false
 }) {
   const modelRef = useRef();
   const headMeshRef = useRef();
   const eyeLeftRef = useRef();
   const eyeRightRef = useRef();
+  const animationTimeRef = useRef(0);
   const gltf = useLoader(GLTFLoader, url);
   const { camera } = useThree();
   const [mousePosition, setMousePosition] = useState(new THREE.Vector3());
 
-  // Gestion du mouvement de la souris
   useEffect(() => {
     const handleMouseMove = (event) => {
       const mouse = new THREE.Vector2(
@@ -44,14 +44,12 @@ export default function RPMAvatar({
           headMeshRef.current = child;
           child.material.morphTargets = true;
         }
-        // Récupérer les os des yeux
         if (child.name === 'EyeLeft') eyeLeftRef.current = child;
         if (child.name === 'EyeRight') eyeRightRef.current = child;
       });
     }
   }, [gltf]);
 
-  // Animation des yeux qui clignent
   const blinkTimer = useRef(0);
   const isBlinking = useRef(false);
   const nextBlinkTime = useRef(Math.random() * 5000);
@@ -59,26 +57,41 @@ export default function RPMAvatar({
   useFrame((state, delta) => {
     const headMesh = headMeshRef.current;
     if (headMesh && headMesh.morphTargetInfluences && headMesh.morphTargetDictionary) {
-      // Animation naturelle de la bouche
       const jawOpenIndex = headMesh.morphTargetDictionary['jawOpen'];
       const mouthOpenIndex = headMesh.morphTargetDictionary['mouthOpen'];
       const mouthSmileIndex = headMesh.morphTargetDictionary['mouthSmile'];
       const mouthPuckerIndex = headMesh.morphTargetDictionary['mouthPucker'];
 
-      if (jawOpenIndex !== undefined) {
-        // Animation plus naturelle de la bouche avec plusieurs morphTargets
-        headMesh.morphTargetInfluences[jawOpenIndex] = mouthOpenValue * 0.7;
-      }
-      if (mouthOpenIndex !== undefined) {
-        headMesh.morphTargetInfluences[mouthOpenIndex] = mouthOpenValue;
-      }
-      if (mouthSmileIndex !== undefined) {
-        // Léger sourire qui varie avec l'ouverture de la bouche
-        headMesh.morphTargetInfluences[mouthSmileIndex] = 0.2 - (mouthOpenValue * 0.1);
-      }
-      if (mouthPuckerIndex !== undefined) {
-        // Légère tension des lèvres
-        headMesh.morphTargetInfluences[mouthPuckerIndex] = mouthOpenValue * 0.2;
+      if (isAnimating) {
+        animationTimeRef.current += delta;
+        const animatedValue = Math.abs(Math.sin(animationTimeRef.current * 10)) * 0.5;
+
+        if (jawOpenIndex !== undefined) {
+          headMesh.morphTargetInfluences[jawOpenIndex] = animatedValue * 0.7;
+        }
+        if (mouthOpenIndex !== undefined) {
+          headMesh.morphTargetInfluences[mouthOpenIndex] = animatedValue;
+        }
+        if (mouthSmileIndex !== undefined) {
+          headMesh.morphTargetInfluences[mouthSmileIndex] = 0.2 - (animatedValue * 0.1);
+        }
+        if (mouthPuckerIndex !== undefined) {
+          headMesh.morphTargetInfluences[mouthPuckerIndex] = animatedValue * 0.2;
+        }
+      } else {
+        if (jawOpenIndex !== undefined) {
+          headMesh.morphTargetInfluences[jawOpenIndex] = mouthOpenValue * 0.7;
+        }
+        if (mouthOpenIndex !== undefined) {
+          headMesh.morphTargetInfluences[mouthOpenIndex] = mouthOpenValue;
+        }
+        if (mouthSmileIndex !== undefined) {
+          headMesh.morphTargetInfluences[mouthSmileIndex] = 0.2 - (mouthOpenValue * 0.1);
+        }
+        if (mouthPuckerIndex !== undefined) {
+          headMesh.morphTargetInfluences[mouthPuckerIndex] = mouthOpenValue * 0.2;
+        }
+        animationTimeRef.current = 0;
       }
 
       // Gestion du clignement des yeux
@@ -86,7 +99,7 @@ export default function RPMAvatar({
       if (blinkTimer.current >= nextBlinkTime.current && !isBlinking.current) {
         isBlinking.current = true;
         blinkTimer.current = 0;
-        nextBlinkTime.current = Math.random() * 5000 + 2000; // 2-7 secondes entre les clignements
+        nextBlinkTime.current = Math.random() * 5000 + 2000;
       }
 
       const eyeBlinkLeftIndex = headMesh.morphTargetDictionary['eyeBlinkLeft'];
@@ -98,7 +111,7 @@ export default function RPMAvatar({
           headMesh.morphTargetInfluences[eyeBlinkLeftIndex] = blinkValue;
           headMesh.morphTargetInfluences[eyeBlinkRightIndex] = blinkValue;
           
-          if (blinkTimer.current > 150) { // Durée du clignement
+          if (blinkTimer.current > 150) {
             isBlinking.current = false;
             blinkTimer.current = 0;
           }
@@ -112,9 +125,8 @@ export default function RPMAvatar({
     
     if (eyeLeft && eyeRight && mousePosition) {
       const target = mousePosition.clone();
-      const maxRotation = 0.3; // Limite de rotation des yeux
+      const maxRotation = 0.3;
 
-      // Calculer la direction du regard
       eyeLeft.getWorldPosition(new THREE.Vector3());
       eyeRight.getWorldPosition(new THREE.Vector3());
 
@@ -129,7 +141,6 @@ export default function RPMAvatar({
         )
       );
 
-      // Appliquer les rotations avec limites
       eyeLeft.rotation.x = THREE.MathUtils.clamp(leftRotation.x, -maxRotation, maxRotation);
       eyeLeft.rotation.y = THREE.MathUtils.clamp(leftRotation.y, -maxRotation, maxRotation);
       eyeRight.rotation.x = THREE.MathUtils.clamp(rightRotation.x, -maxRotation, maxRotation);
