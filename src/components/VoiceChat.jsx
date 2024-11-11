@@ -244,11 +244,11 @@ const VoiceChat = ({ onSpeakingStateChange }) => {
     // Créez un fichier .env à la racine du projet
     // VITE_GOOGLE_API_KEY=votre_clé_api
 
-    // const apiKey = import.meta.env.VITE_TEXT_SPEECH_GOOGLE
+    const apiKey = import.meta.env.VITE_TEXT_SPEECH_GOOGLE
     const synthesizeAudio = async (text) => {
         try {
             setIsSpeaking(true);
-            console.log(import.meta.env.VITE_TEXT_SPEECH_GOOGLE)
+            // console.log(import.meta.env.VITE_TEXT_SPEECH_GOOGLE)
             const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
