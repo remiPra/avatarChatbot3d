@@ -244,7 +244,7 @@ const VoiceChat = ({ onSpeakingStateChange }) => {
     // Créez un fichier .env à la racine du projet
     // VITE_GOOGLE_API_KEY=votre_clé_api
 
-    const apiKey = import.meta.env.VITE_TEXT_SPEECH_GOOGLE
+    // const apiKey = import.meta.env.VITE_TEXT_SPEECH_GOOGLE
     const synthesizeAudio = async (text) => {
         try {
             setIsSpeaking(true);
