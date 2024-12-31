@@ -13,6 +13,8 @@ export default function RPMAvatar({
   const eyeLeftRef = useRef();
   const eyeRightRef = useRef();
   const animationTimeRef = useRef(0);
+  const linesRef = useRef([{}, {}, {}]); // Pour les 3 parties de l'animation
+  const [volume, setVolume] = useState(0);
   const gltf = useLoader(GLTFLoader, url);
   const { camera } = useThree();
   const [mousePosition, setMousePosition] = useState(new THREE.Vector3());
@@ -50,9 +52,34 @@ export default function RPMAvatar({
     }
   }, [gltf]);
 
+  // Animation du volume
+  useEffect(() => {
+    let timeout = null;
+    const update = () => {
+      if (isAnimating) {
+        const newVolume = Math.random() * 0.1; // Simuler le volume
+        setVolume(newVolume);
+      }
+      timeout = window.setTimeout(update, 100);
+    };
+    update();
+    return () => clearTimeout(timeout);
+  }, [isAnimating]);
+
   const blinkTimer = useRef(0);
   const isBlinking = useRef(false);
   const nextBlinkTime = useRef(Math.random() * 5000);
+
+  const lipMovement = (time, volume, index) => {
+    const baseAmplitude = index === 1 ? 400 : 60;
+    const height = Math.min(24, 4 + volume * baseAmplitude) / 24;
+    
+    return (
+      height * 0.5 + 
+      Math.sin(time * 15 + index * 0.5) * 0.2 * height +
+      Math.random() * 0.05 // Léger bruit aléatoire
+    );
+  };
 
   useFrame((state, delta) => {
     const headMesh = headMeshRef.current;
@@ -61,36 +88,55 @@ export default function RPMAvatar({
       const mouthOpenIndex = headMesh.morphTargetDictionary['mouthOpen'];
       const mouthSmileIndex = headMesh.morphTargetDictionary['mouthSmile'];
       const mouthPuckerIndex = headMesh.morphTargetDictionary['mouthPucker'];
+      const mouthShrugUpperIndex = headMesh.morphTargetDictionary['mouthShrugUpper'];
+      const mouthFunnelIndex = headMesh.morphTargetDictionary['mouthFunnel'];
+      const mouthRollLowerIndex = headMesh.morphTargetDictionary['mouthRollLower'];
 
       if (isAnimating) {
         animationTimeRef.current += delta;
-        const animatedValue = Math.abs(Math.sin(animationTimeRef.current * 10)) * 0.5;
 
+        // Calculer les valeurs d'animation pour chaque partie
+        const leftValue = lipMovement(animationTimeRef.current, volume, 0);
+        const centerValue = lipMovement(animationTimeRef.current, volume, 1);
+        const rightValue = lipMovement(animationTimeRef.current, volume, 2);
+
+        // Appliquer les animations
         if (jawOpenIndex !== undefined) {
-          headMesh.morphTargetInfluences[jawOpenIndex] = animatedValue * 0.7;
+          headMesh.morphTargetInfluences[jawOpenIndex] = centerValue * 0.5;
         }
         if (mouthOpenIndex !== undefined) {
-          headMesh.morphTargetInfluences[mouthOpenIndex] = animatedValue;
+          headMesh.morphTargetInfluences[mouthOpenIndex] = centerValue * 0.7;
         }
         if (mouthSmileIndex !== undefined) {
-          headMesh.morphTargetInfluences[mouthSmileIndex] = 0.2 - (animatedValue * 0.1);
+          headMesh.morphTargetInfluences[mouthSmileIndex] = leftValue * 0.3;
         }
         if (mouthPuckerIndex !== undefined) {
-          headMesh.morphTargetInfluences[mouthPuckerIndex] = animatedValue * 0.2;
+          headMesh.morphTargetInfluences[mouthPuckerIndex] = rightValue * 0.2;
+        }
+        if (mouthShrugUpperIndex !== undefined) {
+          headMesh.morphTargetInfluences[mouthShrugUpperIndex] = centerValue * 0.2;
+        }
+        if (mouthFunnelIndex !== undefined) {
+          headMesh.morphTargetInfluences[mouthFunnelIndex] = centerValue * 0.15;
+        }
+        if (mouthRollLowerIndex !== undefined) {
+          headMesh.morphTargetInfluences[mouthRollLowerIndex] = centerValue * 0.1;
         }
       } else {
-        if (jawOpenIndex !== undefined) {
-          headMesh.morphTargetInfluences[jawOpenIndex] = mouthOpenValue * 0.7;
-        }
-        if (mouthOpenIndex !== undefined) {
-          headMesh.morphTargetInfluences[mouthOpenIndex] = mouthOpenValue;
-        }
-        if (mouthSmileIndex !== undefined) {
-          headMesh.morphTargetInfluences[mouthSmileIndex] = 0.2 - (mouthOpenValue * 0.1);
-        }
-        if (mouthPuckerIndex !== undefined) {
-          headMesh.morphTargetInfluences[mouthPuckerIndex] = mouthOpenValue * 0.2;
-        }
+        // État statique
+        const staticValues = {
+          [jawOpenIndex]: mouthOpenValue * 0.7,
+          [mouthOpenIndex]: mouthOpenValue,
+          [mouthSmileIndex]: 0.2 - (mouthOpenValue * 0.1),
+          [mouthPuckerIndex]: mouthOpenValue * 0.2
+        };
+
+        Object.entries(staticValues).forEach(([index, value]) => {
+          if (index !== undefined) {
+            headMesh.morphTargetInfluences[index] = value;
+          }
+        });
+
         animationTimeRef.current = 0;
       }
 
